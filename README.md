@@ -43,3 +43,12 @@ Envías un texto como *"Tengo examen de cálculo el 20 de julio, es un tema dif�
 | GET | `/api/tasks` | Lista todas las tareas |
 | POST | `/api/tasks` | Crea una tarea manualmente |
 | POST | `/api/tasks/from-text` | Extrae y crea una tarea desde texto libre + sincroniza con Calendar |
+
+## Comando de voz inteligente
+
+El endpoint `/api/tasks/voice-command` interpreta el texto transcrito por voz y decide automaticamente si el usuario quiere:
+
+- **Crear una tarea nueva**: si el texto describe una tarea nueva (examen, entrega, fecha)
+- **Completar una tarea existente**: si el texto indica que ya se hizo algo (ej: "ya hice el examen de calculo")
+
+Para decidir esto, se le pasa a Groq la lista de tareas pendientes del usuario junto con el texto, y el modelo identifica cual tarea coincide semanticamente con lo que el usuario menciono, sin necesidad de que el texto coincida exactamente con el titulo guardado.
