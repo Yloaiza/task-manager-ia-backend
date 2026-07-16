@@ -7,6 +7,7 @@ import com.yojan.task_manager_ia.service.GoogleCalendarService;
 import com.yojan.task_manager_ia.service.GroqService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.yojan.task_manager_ia.dto.VoiceCommandDTO;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,6 +36,33 @@ public class TaskController {
         return taskRepository.save(task);
     }
 
+    @GetMapping("/upcoming")
+    public List<Task> getUpcomingTasks() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime in48Hours = now.plusHours(48);
+        List<Task> upcoming = taskRepository.findByDueDateBetweenAndCompletedFalseAndNotifiedFalse(now, in48Hours);
+
+        upcoming.forEach(task -> task.setNotified(true));
+        taskRepository.saveAll(upcoming);
+
+        return upcoming;
+    }
+
+    @PatchMapping("/{id}/toggle-complete")
+    public Task toggleComplete(@PathVariable Long id) {
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Tarea no encontrada"));
+        task.setCompleted(!task.isCompleted());
+        return taskRepository.save(task);
+    }
+
+    @GetMapping("/weekly-summary")
+    public List<Task> getWeeklySummary() {
+        LocalDateTime weekAgo = LocalDateTime.now().minusDays(7);
+        LocalDateTime now = LocalDateTime.now();
+        return taskRepository.findByCreatedAtBetween(weekAgo, now);
+    }
+
     @PostMapping("/from-text")
     public Task createTaskFromText(@RequestBody Map<String, String> body) {
         String userText = body.get("text");
@@ -46,15 +74,17 @@ public class TaskController {
         task.setDifficulty(extracted.getDifficulty());
 
         if (extracted.getDueDate() != null && !extracted.getDueDate().equals("null")) {
-            LocalDateTime dueDate = LocalDateTime.parse(extracted.getDueDate());
+            String rawDate = extracted.getDueDate();
+            LocalDateTime dueDate = rawDate.contains("T")
+                    ? LocalDateTime.parse(rawDate)
+                    : LocalDateTime.parse(rawDate + "T00:00:00");
             task.setDueDate(dueDate);
 
             try {
                 String eventLink = googleCalendarService.createEvent(
                         extracted.getTitle(),
                         "Materia: " + extracted.getSubject() + " | Dificultad: " + extracted.getDifficulty(),
-                        dueDate
-                );
+                        dueDate);
                 System.out.println("Evento creado en Calendar: " + eventLink);
             } catch (Exception e) {
                 System.err.println("Error creando evento en Calendar: " + e.getMessage());
@@ -62,5 +92,45 @@ public class TaskController {
         }
 
         return taskRepository.save(task);
+    }
+
+    @PostMapping("/voice-command")
+    public Map<String, Object> handleVoiceCommand(@RequestBody Map<String, String> body) {
+        String userText = body.get("text");
+        List<Task> pending = taskRepository.findByCompletedFalse();
+        VoiceCommandDTO command = groqService.interpretVoiceCommand(userText, pending);
+
+        if ("complete".equals(command.getAction()) && command.getTaskId() != null) {
+            Task task = taskRepository.findById(command.getTaskId())
+                    .orElseThrow(() -> new RuntimeException("Tarea no encontrada"));
+            task.setCompleted(true);
+            taskRepository.save(task);
+            return Map.of("action", "complete", "task", task);
+        }
+
+        Task task = new Task();
+        task.setTitle(command.getTitle());
+        task.setSubject(command.getSubject());
+        task.setDifficulty(command.getDifficulty());
+
+        if (command.getDueDate() != null && !command.getDueDate().equals("null")) {
+            String rawDate = command.getDueDate();
+            LocalDateTime dueDate = rawDate.contains("T")
+                    ? LocalDateTime.parse(rawDate)
+                    : LocalDateTime.parse(rawDate + "T00:00:00");
+            task.setDueDate(dueDate);
+            try {
+                googleCalendarService.createEvent(
+                        command.getTitle(),
+                        "Materia: " + command.getSubject() + " | Dificultad: " + command.getDifficulty(),
+                        dueDate
+                );
+            } catch (Exception e) {
+                System.err.println("Error creando evento en Calendar: " + e.getMessage());
+            }
+        }
+
+        taskRepository.save(task);
+        return Map.of("action", "create", "task", task);
     }
 }

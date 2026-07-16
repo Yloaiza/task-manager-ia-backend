@@ -15,7 +15,7 @@ public class Task {
 
     @Column(nullable = false)
     private String title;
-
+    private boolean notified = false;
     private String subject;
 
     private LocalDateTime dueDate;

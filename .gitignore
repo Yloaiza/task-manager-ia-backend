@@ -34,4 +34,4 @@ build/
 
 src/main/resources/google-credentials.json
 tokens/
-echo "src/main/resources/application.properties" >> .gitignore
+src/main/resources/application.properties
