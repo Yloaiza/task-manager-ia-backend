@@ -16,8 +16,7 @@ import java.io.FileReader;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 
@@ -28,6 +27,7 @@ public class GoogleCalendarAuthService {
             System.getenv().getOrDefault("GOOGLE_TOKENS_PATH", "tokens");
     private static final String CREDENTIALS_FILE_PATH =
             System.getenv().getOrDefault("GOOGLE_CREDENTIALS_PATH", "google-credentials.json");
+    private static final String TOKEN_BASE64 = System.getenv("GOOGLE_TOKEN_BASE64");
     private static final List<String> SCOPES = Collections.singletonList(CalendarScopes.CALENDAR_EVENTS);
 
     public Credential getCredentials() throws Exception {
@@ -51,25 +51,20 @@ public class GoogleCalendarAuthService {
     }
 
     private File prepareWritableTokensDir() throws Exception {
-        File sourceDir = new File(SOURCE_TOKENS_PATH);
         File writableDir = new File("/tmp/google-tokens");
-
         if (!writableDir.exists()) {
             writableDir.mkdirs();
         }
 
-        if (sourceDir.exists() && sourceDir.isDirectory()) {
-            for (File file : sourceDir.listFiles()) {
-                Path target = writableDir.toPath().resolve(file.getName());
-                if (!Files.exists(target)) {
-                    Files.copy(file.toPath(), target, StandardCopyOption.REPLACE_EXISTING);
-                }
-            }
-        } else if (sourceDir.exists() && sourceDir.isFile()) {
-            // Caso: SOURCE_TOKENS_PATH apunta directo a un archivo (ej: Secret File individual)
-            Path target = writableDir.toPath().resolve(sourceDir.getName());
-            if (!Files.exists(target)) {
-                Files.copy(sourceDir.toPath(), target, StandardCopyOption.REPLACE_EXISTING);
+        File tokenFile = new File(writableDir, "StoredCredential");
+
+        if (TOKEN_BASE64 != null && !TOKEN_BASE64.isBlank()) {
+            byte[] decoded = Base64.getDecoder().decode(TOKEN_BASE64.trim());
+            Files.write(tokenFile.toPath(), decoded);
+        } else {
+            File sourceFile = new File(SOURCE_TOKENS_PATH, "StoredCredential");
+            if (sourceFile.exists() && !tokenFile.exists()) {
+                Files.copy(sourceFile.toPath(), tokenFile.toPath());
             }
         }
 
