@@ -12,27 +12,27 @@ import com.google.api.services.calendar.CalendarScopes;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.io.FileReader;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.util.Collections;
 import java.util.List;
 
 @Service
 public class GoogleCalendarAuthService {
 
-    private static final String TOKENS_DIRECTORY_PATH = "tokens";
+    private static final String TOKENS_DIRECTORY_PATH =
+            System.getenv().getOrDefault("GOOGLE_TOKENS_PATH", "tokens");
+    private static final String CREDENTIALS_FILE_PATH =
+            System.getenv().getOrDefault("GOOGLE_CREDENTIALS_PATH", "google-credentials.json");
     private static final List<String> SCOPES = Collections.singletonList(CalendarScopes.CALENDAR_EVENTS);
-    private static final String CREDENTIALS_FILE_PATH = "/google-credentials.json";
 
     public Credential getCredentials() throws Exception {
         var httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         var jsonFactory = GsonFactory.getDefaultInstance();
 
-        var in = GoogleCalendarAuthService.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
-        if (in == null) {
-            throw new RuntimeException("No se encontro el archivo: " + CREDENTIALS_FILE_PATH);
-        }
-
-        var clientSecrets = GoogleClientSecrets.load(jsonFactory, new InputStreamReader(in));
+        Reader reader = loadCredentialsReader();
+        var clientSecrets = GoogleClientSecrets.load(jsonFactory, reader);
 
         var flow = new GoogleAuthorizationCodeFlow.Builder(
                 httpTransport, jsonFactory, clientSecrets, SCOPES)
@@ -43,5 +43,18 @@ public class GoogleCalendarAuthService {
         var receiver = new LocalServerReceiver.Builder().setPort(8888).build();
 
         return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
+    }
+
+    private Reader loadCredentialsReader() throws Exception {
+        File fileOnDisk = new File(CREDENTIALS_FILE_PATH);
+        if (fileOnDisk.exists()) {
+            return new FileReader(fileOnDisk);
+        }
+
+        var in = GoogleCalendarAuthService.class.getResourceAsStream("/google-credentials.json");
+        if (in == null) {
+            throw new RuntimeException("No se encontro el archivo de credenciales de Google (ni en disco ni en el classpath). Ruta buscada: " + CREDENTIALS_FILE_PATH);
+        }
+        return new InputStreamReader(in);
     }
 }
