@@ -12,4 +12,7 @@ spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
 groq.api.key=${GROQ_API_KEY}
 groq.api.url=https://api.groq.com/openai/v1/chat/completions
 
+jwt.secret=${JWT_SECRET:cambiame-por-un-secreto-largo-y-aleatorio}
+jwt.expiration=604800000
+
 server.port=${PORT:8080}

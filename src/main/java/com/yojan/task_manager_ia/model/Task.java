@@ -1,5 +1,6 @@
 package com.yojan.task_manager_ia.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -15,7 +16,9 @@ public class Task {
 
     @Column(nullable = false)
     private String title;
+
     private boolean notified = false;
+
     private String subject;
 
     private LocalDateTime dueDate;
@@ -25,4 +28,9 @@ public class Task {
     private boolean completed = false;
 
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    @JsonIgnore
+    private User user;
 }
