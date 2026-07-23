@@ -2,8 +2,9 @@
 
 Backend de una aplicacion de gestion de tareas academicas que permite crear y completar tareas hablando en lenguaje natural. Un modelo de IA interpreta el texto (transcrito por voz o escrito), extrae la informacion estructurada, la guarda en base de datos, y sincroniza automaticamente con el Google Calendar del propio usuario. El sistema es completamente multi-usuario: cada persona se registra con su cuenta, conecta su propio Google Calendar, y sus tareas quedan aisladas del resto.
 
-**Backend en produccion**: https://task-manager-ia-backend.onrender.com
-**Repositorio mobile**: https://github.com/Yloaiza/task-manager-mobile
+**Backend en produccion**: https://task-manager-ia-backend.onrender.com 
+
+**Repositorio mobile**: https://github.com/Yloaiza/task-manager-ia-mobile-app
 
 ## Flujo completo del sistema
 
@@ -18,13 +19,25 @@ Backend de una aplicacion de gestion de tareas academicas que permite crear y co
 9. Si es completar una tarea: se marca como completada
 10. La app programa una notificacion local para recordar la tarea 1 hora antes de su vencimiento
 
+## Cuenta de demostracion
+
+Para probar la app sin necesidad de registrarse, hay una cuenta de demo con datos de ejemplo precargados:
+
+- **Email**: taskmanagertest6@gmail.com
+- **Contraseña**: test61234
+
+Esta cuenta ya tiene varias tareas de ejemplo (algunas completadas, otras pendientes) para mostrar el funcionamiento de la app sin pasos previos.
+
 ## Arquitectura
 
 App Mobile (Expo / React Native)
+
 |
 | HTTPS + JWT Bearer token
+
 v
 Backend (Spring Boot, Render)
+
 |
 |--- PostgreSQL (Supabase) — usuarios, tareas, credenciales de Google por usuario
 |--- Groq API — extraccion de datos y decision crear/completar
@@ -64,7 +77,7 @@ Backend (Spring Boot, Render)
 | POST | `/api/auth/register` | Crear cuenta | No |
 | POST | `/api/auth/login` | Iniciar sesion | No |
 | GET | `/api/calendar/connect` | Inicia el flujo OAuth de Google Calendar | Si |
-| GET | `/api/calendar/callback` | Callback de Google (recibe el codigo) | No* |
+| GET | `/api/calendar/callback` | Callback de Google (recibe el codigo) | No |
 | GET | `/api/calendar/status` | Estado de conexion del calendario | Si |
 | GET | `/api/tasks` | Lista las tareas del usuario autenticado | Si |
 | POST | `/api/tasks` | Crea una tarea manualmente | Si |
@@ -101,4 +114,4 @@ Backend (Spring Boot, Render)
 
 ## Proyectos relacionados
 
-- **App Mobile**: https://github.com/Yloaiza/task-manager-mobile
+- **App Mobile**: [https://github.com/Yloaiza/task-manager-mobile](https://github.com/Yloaiza/task-manager-ia-mobile-app)
