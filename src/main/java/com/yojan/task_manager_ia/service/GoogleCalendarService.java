@@ -1,48 +1,55 @@
 package com.yojan.task_manager_ia.service;
 
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.calendar.Calendar;
-import com.google.api.services.calendar.model.EventDateTime;
+import com.yojan.task_manager_ia.model.GoogleCredential;
+import com.yojan.task_manager_ia.repository.GoogleCredentialRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Date;
+import java.time.format.DateTimeFormatter;
+import java.util.Map;
 
 @Service
 public class GoogleCalendarService {
 
-    private final GoogleCalendarAuthService authService;
+    @Autowired
+    private GoogleOAuthService googleOAuthService;
 
-    public GoogleCalendarService(GoogleCalendarAuthService authService) {
-        this.authService = authService;
-    }
+    @Autowired
+    private GoogleCredentialRepository googleCredentialRepository;
 
-    public String createEvent(String title, String description, LocalDateTime dueDate) throws Exception {
-        var httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-        var jsonFactory = GsonFactory.getDefaultInstance();
-        var credential = authService.getCredentials();
+    private final RestClient restClient = RestClient.create();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-        var service = new Calendar.Builder(httpTransport, jsonFactory, credential)
-                .setApplicationName("Task Manager IA")
-                .build();
+    public String createEvent(Long userId, String title, String description, LocalDateTime dueDate) throws Exception {
+        GoogleCredential credential = googleCredentialRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("El usuario no ha conectado Google Calendar"));
 
-        var event = new com.google.api.services.calendar.model.Event()
-                .setSummary(title)
-                .setDescription(description);
+        String accessToken = googleOAuthService.getValidAccessToken(credential, googleCredentialRepository);
 
-        Date date = Date.from(dueDate.atZone(ZoneId.systemDefault()).toInstant());
-        Date endDate = Date.from(dueDate.plusHours(1).atZone(ZoneId.systemDefault()).toInstant());
+        DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+        String startIso = dueDate.format(formatter);
+        String endIso = dueDate.plusHours(1).format(formatter);
 
-        var dateTime = new com.google.api.client.util.DateTime(date);
-        event.setStart(new EventDateTime().setDateTime(dateTime).setTimeZone("America/Bogota"));
+        Map<String, Object> eventBody = Map.of(
+                "summary", title,
+                "description", description,
+                "start", Map.of("dateTime", startIso, "timeZone", "America/Bogota"),
+                "end", Map.of("dateTime", endIso, "timeZone", "America/Bogota")
+        );
 
-        var endDateTime = new com.google.api.client.util.DateTime(endDate);
-        event.setEnd(new EventDateTime().setDateTime(endDateTime).setTimeZone("America/Bogota"));
+        String response = restClient.post()
+                .uri("https://www.googleapis.com/calendar/v3/calendars/primary/events")
+                .header("Authorization", "Bearer " + accessToken)
+                .header("Content-Type", "application/json")
+                .body(eventBody)
+                .retrieve()
+                .body(String.class);
 
-        var createdEvent = service.events().insert("primary", event).execute();
-
-        return createdEvent.getHtmlLink();
+        JsonNode root = objectMapper.readTree(response);
+        return root.path("htmlLink").asText();
     }
 }

@@ -86,10 +86,11 @@ public class TaskController {
 
     @PostMapping("/from-text")
     public Task createTaskFromText(@RequestBody Map<String, String> body, Authentication authentication) {
+        Long userId = currentUserId(authentication);
         String userText = body.get("text");
         TaskExtractionDTO extracted = groqService.extractTaskFromText(userText);
 
-        User user = userRepository.findById(currentUserId(authentication)).orElseThrow();
+        User user = userRepository.findById(userId).orElseThrow();
 
         Task task = new Task();
         task.setUser(user);
@@ -106,6 +107,7 @@ public class TaskController {
 
             try {
                 String eventLink = googleCalendarService.createEvent(
+                        userId,
                         extracted.getTitle(),
                         "Materia: " + extracted.getSubject() + " | Dificultad: " + extracted.getDifficulty(),
                         dueDate);
@@ -154,6 +156,7 @@ public class TaskController {
             task.setDueDate(dueDate);
             try {
                 googleCalendarService.createEvent(
+                        userId,
                         command.getTitle(),
                         "Materia: " + command.getSubject() + " | Dificultad: " + command.getDifficulty(),
                         dueDate
